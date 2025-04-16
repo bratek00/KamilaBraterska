@@ -1,61 +1,47 @@
-const firebaseURL = 'https://your-project-id.firebaseio.com'; // Replace with your Firebase URL
+let loggedIn = false;
 
-const validUsername = "admin";
-const validPassword = "admin123";
+async function login() {
+  const username = document.getElementById('user').value;
+  const password = document.getElementById('pass').value;
 
-document.getElementById("loginBtn").onclick = () => {
-  const user = document.getElementById("username").value;
-  const pass = document.getElementById("password").value;
+  const res = await fetch('/api/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
 
-  if (user === validUsername && pass === validPassword) {
-    document.getElementById("loginForm").style.display = "none";
-    document.getElementById("adminActions").style.display = "block";
-    loadResponses();
+  const data = await res.json();
+  if (data.success) {
+    loggedIn = true;
+    document.getElementById('adminPanel').style.display = 'block';
+    loadOrders();
   } else {
-    alert("Invalid credentials.");
+    alert('Login failed');
   }
-};
+}
 
-function loadResponses() {
-  fetch(`${firebaseURL}/responses.json`)
-    .then(res => res.json())
-    .then(data => {
-      const out = document.getElementById("output");
-      if (!data) {
-        out.textContent = "No data found.";
-        return;
-      }
+async function addProduct() {
+  const name = document.getElementById('pname').value;
+  const price = parseFloat(document.getElementById('pprice').value);
 
-      const rows = [];
-      for (const key in data) {
-        const r = data[key];
-        rows.push([
-          `"${r.q1 || ''}"`,
-          `"${(r.q2 || []).join(';')}"`,
-          `"${r.q3 || ''}"`,
-          `"${r.q4 || ''}"`
-        ]);
-      }
+  const res = await fetch('/api/admin/add-product', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, price })
+  });
 
-      const csv = "Q1,Q2,Q3,Q4\n" + rows.map(r => r.join(",")).join("\n");
-      out.textContent = csv;
+  const data = await res.json();
+  alert(data.success ? 'Product added' : 'Failed to add');
+}
 
-      document.getElementById("exportBtn").onclick = () => {
-        const blob = new Blob([csv], { type: "text/csv" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "responses.csv";
-        a.click();
-      };
-
-      document.getElementById("deleteBtn").onclick = () => {
-        if (confirm("Are you sure you want to delete all responses?")) {
-          fetch(`${firebaseURL}/responses.json`, { method: "DELETE" }).then(() => {
-            alert("All responses deleted.");
-            out.textContent = "";
-          });
-        }
-      };
-    });
+async function loadOrders() {
+  const res = await fetch('/api/admin/orders');
+  const orders = await res.json();
+  const container = document.getElementById('orders');
+  container.innerHTML = '';
+  orders.forEach(order => {
+    const div = document.createElement('div');
+    div.textContent = `Address: ${order.address} | Items: ${order.items.map(i => i.name).join(', ')}`;
+    container.appendChild(div);
+  });
 }
